@@ -1,7 +1,10 @@
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
 
-import { db } from "@/firebase/admin";
+import { getFirebaseAdmin } from "@/firebase/admin";
+
+const { db } = getFirebaseAdmin();
+
 import { getRandomInterviewCover } from "@/lib/utils";
 
 export async function POST(request: Request) {
