@@ -1,9 +1,8 @@
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
 
-import { getFirebaseAdmin } from "@/firebase/admin";
-
-const { db } = getFirebaseAdmin();
+import { getFirebaseAdmin } from "@/lib/firebase-admin";
+const { auth, db } = getFirebaseAdmin();
 
 import { getRandomInterviewCover } from "@/lib/utils";
 
