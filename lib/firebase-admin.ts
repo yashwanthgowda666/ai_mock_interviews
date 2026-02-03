@@ -1,8 +1,13 @@
-import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getApps, initializeApp, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
 export function getFirebaseAdmin() {
+  // 🔒 Prevent Firebase Admin during build time
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    throw new Error("Firebase Admin disabled during build");
+  }
+
   if (!getApps().length) {
     initializeApp({
       credential: cert({
