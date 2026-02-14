@@ -4,19 +4,22 @@ import { z } from "zod";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
-
+import { auth } from "@/firebase/client";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTransition } from "react";
+
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
 
 import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 
+import { signIn, signUp } from "@/lib/actions/auth.action";
 import FormField from "./FormField";
-
-/* ---------------- Schema ---------------- */
-
-type FormType = "sign-in" | "sign-up";
 
 const authFormSchema = (type: FormType) => {
   return z.object({
@@ -26,13 +29,11 @@ const authFormSchema = (type: FormType) => {
   });
 };
 
-/* ---------------- Component ---------------- */
-
 const AuthForm = ({ type }: { type: FormType }) => {
-  const router = useRouter(); // ✅ REQUIRED
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   const formSchema = authFormSchema(type);
-
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -42,22 +43,73 @@ const AuthForm = ({ type }: { type: FormType }) => {
     },
   });
 
-  /* -------- UI-ONLY SUBMIT (MATCH VIDEO FLOW) -------- */
-
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
-    console.log("Form Submitted:", data);
+    try {
+      if (type === "sign-up") {
+        const { name, email, password } = data;
 
-    toast.success(
-      type === "sign-in"
-        ? "Signed in successfully"
-        : "Account created successfully"
-    );
+        // 🔹 Create Firebase Auth user
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
 
-    // simulate auth flow
-    if (type === "sign-in") {
-      router.push("/"); // → Home
-    } else {
-      router.push("/sign-in"); // → Back to sign-in
+        let result: any;
+
+        // 🔹 Call SERVER ACTION properly
+        await new Promise<void>((resolve) => {
+          startTransition(async () => {
+            result = await signUp({
+              uid: userCredential.user.uid,
+              name: name!,
+              email,
+              password,
+            });
+            resolve();
+          });
+        });
+
+        if (!result?.success) {
+          toast.error(result?.message || "Signup failed");
+          return;
+        }
+
+        toast.success("Account created successfully. Please sign in.");
+        router.push("/sign-in");
+      } else {
+        const { email, password } = data;
+
+        // 🔹 Firebase login
+        const userCredential = await signInWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+
+        const idToken = await userCredential.user.getIdToken();
+        if (!idToken) {
+          toast.error("Sign in Failed. Please try again.");
+          return;
+        }
+
+        // 🔹 Call SERVER ACTION properly
+        await new Promise<void>((resolve) => {
+          startTransition(async () => {
+            await signIn({
+              email,
+              idToken,
+            });
+            resolve();
+          });
+        });
+
+        toast.success("Signed in successfully.");
+        router.push("/");
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Something went wrong");
     }
   };
 
@@ -66,7 +118,6 @@ const AuthForm = ({ type }: { type: FormType }) => {
   return (
     <div className="card-border lg:min-w-[566px]">
       <div className="flex flex-col gap-6 card py-14 px-10">
-        {/* Logo */}
         <div className="flex flex-row gap-2 justify-center">
           <Image src="/logo.svg" alt="logo" height={32} width={38} />
           <h2 className="text-primary-100">PrepWise</h2>
@@ -74,7 +125,6 @@ const AuthForm = ({ type }: { type: FormType }) => {
 
         <h3>Practice job interviews with AI</h3>
 
-        {/* Form */}
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
@@ -106,20 +156,23 @@ const AuthForm = ({ type }: { type: FormType }) => {
               type="password"
             />
 
-            <Button className="btn" type="submit">
-              {isSignIn ? "Sign In" : "Create an Account"}
+            <Button className="btn" type="submit" disabled={isPending}>
+              {isPending
+                ? "Please wait..."
+                : isSignIn
+                ? "Sign In"
+                : "Create an Account"}
             </Button>
           </form>
         </Form>
 
-        {/* Switch Link */}
         <p className="text-center">
           {isSignIn ? "No account yet?" : "Have an account already?"}
           <Link
-            href={isSignIn ? "/sign-up" : "/sign-in"}
+            href={!isSignIn ? "/sign-in" : "/sign-up"}
             className="font-bold text-user-primary ml-1"
           >
-            {isSignIn ? "Sign Up" : "Sign In"}
+            {!isSignIn ? "Sign In" : "Sign Up"}
           </Link>
         </p>
       </div>
