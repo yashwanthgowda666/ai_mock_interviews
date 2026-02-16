@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { vapi } from "@/lib/vapi.sdk";
+import { useRouter } from "next/navigation";
+import { interviewer } from "@/constants";
 
 enum CallStatus {
   INACTIVE = "INACTIVE",
@@ -20,10 +22,18 @@ interface SavedMessage {
 const Agent = ({
   userName,
   userId,
+  interviewId,
+  questions,
+  type,
 }: {
   userName: string;
   userId: string;
+  interviewId: string;
+  questions?: string[];
+  type: "generate" | "interview"; 
 }) => {
+  const router = useRouter();
+
   const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
   const [messages, setMessages] = useState<SavedMessage[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -59,31 +69,56 @@ const Agent = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (callStatus === CallStatus.FINISHED) {
+      router.push("/");
+    }
+  }, [callStatus, router]);
+
   const handleCall = async () => {
+  setCallStatus(CallStatus.CONNECTING);
+
   try {
-    setCallStatus(CallStatus.CONNECTING);
+    // =========================
+    // MODE 1 — GENERATE QUESTIONS (WORKFLOW)
+    // =========================
+    if (type === "generate") {
+      await vapi.start(
+        undefined, // agent
+        undefined, // squad
+        undefined, // assistant
+        process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!, // workflowId
+        {
+          variableValues: {
+            username: userName,
+            userid: userId,
+          },
+        }
+      );
+      return;
+    }
 
-    await vapi.start(
-      undefined,   // assistantId
-      undefined,   // squadId
-      undefined,   // phoneNumberId
-      process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!,  // workflowId
-      {
-        variableValues: {
-          username: userName,
-          userid: userId,
-        },
-      }
-    );
+    // =========================
+    // MODE 2 — INTERVIEW SESSION (AGENT)
+    // =========================
+    let formattedQuestions = "";
 
-  } catch (err) {
-    console.error("Vapi start error:", err);
+    if (questions && questions.length > 0) {
+      formattedQuestions = questions
+        .map((q: string) => `- ${q}`)
+        .join("\n");
+    }
+
+    await vapi.start(interviewer, {
+      variableValues: {
+        questions: formattedQuestions,
+      },
+    });
+  } catch (error) {
+    console.error("Vapi start error:", error);
     setCallStatus(CallStatus.INACTIVE);
   }
 };
-
-
-
 
 
   const handleDisconnect = () => {
@@ -146,5 +181,8 @@ const Agent = ({
     </>
   );
 };
+
+
+
 
 export default Agent;
