@@ -2,6 +2,7 @@
 "use server";
 
 import { auth, db } from "@/firebase/admin";
+import { CollectionReference } from "firebase-admin/firestore";
 import { cookies } from "next/headers";
 
 console.log("AUTH ACTION FILE LOADED");
@@ -133,4 +134,48 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function isAuthenticated() {
   const user = await getCurrentUser();
   return !!user;
+}
+
+export async function getInterviewsByUserId(
+  userId: string
+): Promise<Interview[] | null> {
+  try {
+    const snapshot = await db
+      .collection("interviews")
+      .where("userId", "==", userId)   // filter by userId
+      .orderBy("createdAt", "desc")    // latest first
+      .get();
+
+    if (snapshot.empty) return null;
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Interview[];
+  } catch (error) {
+    console.error("Error fetching interviews:", error);
+    return null;
+  }
+}
+
+export async function getLatestInterviews(
+  params: GetLatestInterviewsParams
+): Promise<Interview[] | null> {
+
+  const { userId, limit } = params;
+
+  const snapshot = await db
+    .collection("interviews")
+    .where("finalized", "==", true)
+    .where("userId", "==", userId)
+    .orderBy("createdAt", "desc")
+    .limit(limit ?? 10)
+    .get();
+
+  if (snapshot.empty) return null;
+
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as Interview[];
 }

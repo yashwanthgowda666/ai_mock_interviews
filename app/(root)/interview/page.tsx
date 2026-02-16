@@ -5,11 +5,16 @@ const Page = async () => {
   const user = await getCurrentUser();
 
   return (
-    <Agent
-      userName={user?.name || "User"}
-      userId={user?.id || ""}
-      type="generate"
-    />
+    <>
+      <h3>Interview generation</h3>
+
+      <Agent
+        userName={user?.name!}
+        userId={user?.id}
+        // profileImage={user?.profileURL}
+        type="generate"
+      />
+    </>
   );
 };
 
