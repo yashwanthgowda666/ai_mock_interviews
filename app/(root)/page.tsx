@@ -4,16 +4,21 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import InterviewCard from "@/components/InterviewCard";
 
-import { getCurrentUser } from "@/lib/actions/auth.action";
-import { getInterviewsByUserId, getLatestInterviews } from "@/lib/actions/general.action";
 
+// import { getCurrentUser } from "@/lib/actions/auth.action";
+// import { getInterviewsByUserId, getLatestInterviews } from "@/lib/actions/general.action";
 
-
+import { getCurrentUser, getInterviewsByUserId , getLatestInterviews } from "@/lib/actions/auth.action";
+// import { getInterviewsByUserId, getLatestInterviews } from "@/lib/actions/general.action";
 
 
 
 const Home = async () => {
   const user = await getCurrentUser();
+
+  if (!user) {
+  return <div>Please login again</div>;   // ← DO NOT CALL FIRESTORE
+}
 
   const [userInterviews, latestInterviews] = await Promise.all([
     await getInterviewsByUserId(user?.id!),

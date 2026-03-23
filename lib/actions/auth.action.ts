@@ -95,11 +95,11 @@ export async function signIn(params: SignInParams) {
 }
 
 // Sign out user by clearing the session cookie
-export async function signOut() {
-  const cookieStore = await cookies();
+// export async function signOut() {
+//   const cookieStore = await cookies();
 
-  cookieStore.delete("session");
-}
+//   cookieStore.delete("session");
+// }
 
 // Get current user from session cookie
 export async function getCurrentUser(): Promise<User | null> {
@@ -136,46 +136,46 @@ export async function isAuthenticated() {
   return !!user;
 }
 
-export async function getInterviewsByUserId(
-  userId: string
-): Promise<Interview[] | null> {
-  try {
-    const snapshot = await db
-      .collection("interviews")
-      .where("userId", "==", userId)   // filter by userId
-      .orderBy("createdAt", "desc")    // latest first
+export async function getInterviewsByUserId(userId:string): Promise<Interview[] | null>{
+  const interviews = await db
+      .collection('interviews')
+      .where('userId','==',userId)
+      .orderBy('createdAt','desc')
       .get();
-
-    if (snapshot.empty) return null;
-
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Interview[];
-  } catch (error) {
-    console.error("Error fetching interviews:", error);
-    return null;
-  }
-}
-
-export async function getLatestInterviews(
-  params: GetLatestInterviewsParams
-): Promise<Interview[] | null> {
-
-  const { userId, limit } = params;
-
-  const snapshot = await db
-    .collection("interviews")
-    .where("finalized", "==", true)
-    .where("userId", "==", userId)
-    .orderBy("createdAt", "desc")
-    .limit(limit ?? 10)
-    .get();
-
-  if (snapshot.empty) return null;
-
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
+  return interviews.docs.map((doc)=>({
+    id:doc.id,
+    ...doc.data()
   })) as Interview[];
 }
+
+export async function getLatestInterviews(params:GetLatestInterviewsParams): Promise<Interview[] | null>{
+  const {userId, limit = 20} = params;
+  
+  const interviews = await db
+      .collection('interviews')
+      .orderBy('createdAt','desc')
+      .where('finalized','==',true)
+      .where('userId', '==' , userId)
+      .limit(limit)
+      .get();
+  return interviews.docs.map((doc)=>({
+    id:doc.id,
+    ...doc.data()
+  })) as Interview[];
+}
+
+
+// export async function getInterviewByUserId(userId: string): Promise<Interview[]> {
+//   if (!userId) return []; // safety
+
+//   const snapshot = await db
+//     .collection('interviews')
+//     .where('userId', '==', userId)
+//     .orderBy('createdAt', 'desc')
+//     .get();
+
+//   return snapshot.docs.map((doc) => ({
+//     id: doc.id,
+//     ...doc.data(),
+//   })) as Interview[];
+// }
